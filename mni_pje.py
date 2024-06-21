@@ -149,7 +149,6 @@ def consulta_avisos_pendentes_mni(
     pass_pje=None,
     apartir_de_data="",
     tipo_pendencia=None,
-    modo_dev=False,
     timeout=30,
     ):
 
