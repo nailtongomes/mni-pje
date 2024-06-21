@@ -328,7 +328,8 @@ def identificar_movimentos_relevantes(processo):
     movimentos_relevantes = []
     for movimento in processo['Movimentos']:
         descricao = movimento.get('Complemento', '')
-        movimentos_relevantes.append(descricao)
+        if descricao:
+            movimentos_relevantes.append(descricao)
     return movimentos_relevantes
 
 
@@ -338,11 +339,13 @@ def identificar_descricao_documentos(processo):
 
     for documento in processo['Documentos']:
         descricao = documento.get('Descricao', '')
-        descricoes_documentos_principais.append(descricao)
+        if descricao:
+            descricoes_documentos_principais.append(descricao)
 
         for doc_vinculado in documento.get('Documentos-Vinculados', []):
             descricao_vinculada = doc_vinculado.get('Descricao', '')
-            descricoes_documentos_vinculados.append(descricao_vinculada)
+            if descricao_vinculada:
+                descricoes_documentos_vinculados.append(descricao_vinculada)
 
     return descricoes_documentos_principais, descricoes_documentos_vinculados
 
@@ -350,7 +353,10 @@ def identificar_descricao_documentos(processo):
 def verificar_documentos_principais(
     processo, 
     termos_relevantes = [
-        'Sentença', 'Contestação', 'Apelação', 'Citação'
+        'Sentença', 'Contestação', 
+        'Apelação', 'Citação',
+        'Embargos de Declaração',
+        'Trânsito em Julgado'
     ]
 ):
     
@@ -385,6 +391,8 @@ def extrair_informacao_do_xml_processo(xml_str, retornar_df=True):
     dados_basicos = processo.get('ns2:dadosBasicos', {})
     movimentos = processo.get('ns2:movimento', [])
     documentos = processo.get('ns2:documento', [])
+    assuntos = dados_basicos.get('ns2:assunto', [])
+    processos_vinculados = dados_basicos.get('ns2:processoVinculado', [])
 
     # Estrutura básica do processo
     processo_dados = {
@@ -396,8 +404,28 @@ def extrair_informacao_do_xml_processo(xml_str, retornar_df=True):
         'Data-Ajuizamento': formatar_data_sem_mascara(dados_basicos.get('@dataAjuizamento', '')),
         'Valor-Causa': dados_basicos.get('ns2:valorCausa', ''),
         'Magistrado-Atuante': dados_basicos.get('ns2:magistradoAtuante', ''),
-        'Orgao-Julgador': dados_basicos.get('ns2:orgaoJulgador', {}).get('@nomeOrgao', '')
+        'Orgao-Julgador': dados_basicos.get('ns2:orgaoJulgador', {}).get('@nomeOrgao', ''),
+        'Assuntos': [],
+        'Processos-Vinculados': []
     }
+
+    # Extração de assuntos
+    if not isinstance(assuntos, list):
+        assuntos = [assuntos]
+    for assunto in assuntos:
+        processo_dados['Assuntos'].append({
+            'CodigoNacional': assunto.get('ns2:codigoNacional', ''),
+            'Principal': assunto.get('@principal', 'false') == 'true'
+        })
+
+    # Extração de processos vinculados
+    if not isinstance(processos_vinculados, list):
+        processos_vinculados = [processos_vinculados]
+    for vinculado in processos_vinculados:
+        processo_dados['Processos-Vinculados'].append({
+            'NumeroProcesso': vinculado.get('@numeroProcesso', ''),
+            'Vinculo': vinculado.get('@vinculo', '')
+        })
 
     # Extração de polos e partes
     polos = dados_basicos.get('ns2:polo', [])
@@ -417,6 +445,7 @@ def extrair_informacao_do_xml_processo(xml_str, retornar_df=True):
             partes = [partes]  # Transforma em lista se for um único dicionário
 
         for parte in partes:
+
             pessoa = parte.get('ns2:pessoa', {})
             parte_data = {
                 'Assistencia-Judiciaria': parte.get('@assistenciaJudiciaria', ''),
@@ -466,6 +495,7 @@ def extrair_informacao_do_xml_processo(xml_str, retornar_df=True):
         movimentos = [movimentos]  # Transforma em lista se for um único dicionário
 
     for movimento in movimentos:
+        
         movimento_data = {
             'Data-Hora': movimento.get('@dataHora', ''),
             'Nivel-Sigilo': movimento.get('@nivelSigilo', ''),
@@ -475,13 +505,20 @@ def extrair_informacao_do_xml_processo(xml_str, retornar_df=True):
         }
         processo_dados['Movimentos'].append(movimento_data)
 
-    # Extração de documentos
+    # organizar em ordem decrescente por data-hora
+    df = pd.DataFrame(processo_dados['Movimentos'])
+    df.sort_values(by='Data-Hora', ascending=False, inplace=True)
+    processo_dados['Movimentos'] = df.to_dict(orient='records')
+    del df
+
+    # === Extração de documentos
     processo_dados['Documentos'] = []
 
     if isinstance(documentos, dict):
         documentos = [documentos]  # Transforma em lista se for um único dicionário
 
     for documento in documentos:
+        
         documento_data = {
             'ID-Documento': documento.get('@idDocumento', ''),
             'Tipo-Documento': documento.get('@tipoDocumento', ''),
@@ -512,6 +549,12 @@ def extrair_informacao_do_xml_processo(xml_str, retornar_df=True):
             documento_data['Documentos-Vinculados'].append(doc_vinculado_data)
 
         processo_dados['Documentos'].append(documento_data)
+
+    # organizar Documentos por data-hora em ordem decrescente
+    df = pd.DataFrame(processo_dados['Documentos'])
+    df.sort_values(by='Data-Hora', ascending=False, inplace=True)
+    processo_dados['Documentos'] = df.to_dict(orient='records')
+    del df
 
     processo_dados['Municipio-Reu'] = verifica_cliente_demandado(processo_dados)
     processo_dados['Tempo-Tramitacao'] = calcular_tempo_tramitacao(processo_dados)
