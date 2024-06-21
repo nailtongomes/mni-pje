@@ -148,7 +148,6 @@ def consulta_avisos_pendentes_mni(
     id_pje=None,
     pass_pje=None,
     apartir_de_data="",
-    tipo_pendencia=None,
     timeout=30,
     ):
 
@@ -197,6 +196,39 @@ def consulta_avisos_pendentes_mni(
         falha_msg = f'Falha: {e} - {traceback.print_exc()}'           
 
         return None, falha_msg
+
+
+# https://www.cnj.jus.br/sgt/infWebService.php
+def pesquisar_nome_classe_processual_cnj(
+    tipoTabela='C', # Tipo da tabela a ser pesquisada(A,M,C) - Assuntos, Movimentos, Classes
+    tipoPesquisa='C', # -Tipo da pesquisa(G,N,C) - Glossário, Nome, Código
+    valorPesquisa='1116'
+):
+    
+    # https://www.cnj.jus.br/sgt/infWebService.php
+    settings = zeep.Settings(strict=False, xml_huge_tree=True)
+    history = HistoryPlugin()
+    client = zeep.Client(
+        wsdl='https://www.cnj.jus.br/sgt/sgt_ws.php?wsdl', 
+        settings=settings, plugins=[history]
+    )
+
+    try:
+        # utiliza a função do soap
+        resp = client.service.pesquisarItemPublicoWS(
+            tipoTabela=tipoTabela,
+            tipoPesquisa=tipoPesquisa,
+            valorPesquisa=valorPesquisa
+            )
+
+        pretty_xml = etree.tostring(
+            history.last_received["envelope"], 
+            encoding="unicode", pretty_print=True
+        )
+
+        return resp, pretty_xml
+    except Exception as e:
+        return None, f'Falha: {e} - {traceback.print_exc()}'
 
 
 # === parse avisos
