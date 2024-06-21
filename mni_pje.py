@@ -481,11 +481,11 @@ def extrair_informacao_do_xml_processo(xml_str, retornar_df=True):
 
         processo_dados['Documentos'].append(documento_data)
 
-    processo['Municipio-Reu'] = verifica_cliente_demandado(processo_dados)
-    processo['Tempo-Tramitacao'] = calcular_tempo_tramitacao(processo_dados)
-    processo['Movimentos-Relevantes'] = identificar_movimentos_relevantes(processo_dados)
-    processo['Descricao-Documentos'] = identificar_descricao_documentos(processo_dados)
-    processo['Termos-Relevantes'] = verificar_documentos_principais(processo_dados)
+    processo_dados['Municipio-Reu'] = verifica_cliente_demandado(processo_dados)
+    processo_dados['Tempo-Tramitacao'] = calcular_tempo_tramitacao(processo_dados)
+    processo_dados['Movimentos-Relevantes'] = identificar_movimentos_relevantes(processo_dados)
+    processo_dados['Descricao-Documentos'] = identificar_descricao_documentos(processo_dados)
+    processo_dados['Termos-Relevantes'] = verificar_documentos_principais(processo_dados)
 
     if retornar_df:
         # Retornar como DataFrame, mas isso pode ser complexo devido à estrutura aninhada
