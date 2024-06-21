@@ -266,18 +266,21 @@ def extrair_informacao_do_xml_avisos(xml_str, retornar_df=True):
 # === parse processo
 def verifica_cliente_demandado(
     processo, 
-    nomes_cliente=[
+    nomes_clientes=[
         'Município de Natal',
         'INSTITUTO DE PREVIDENCIA DOS SERVIDORES DE NATAL'
     ]
 ):
 
-    for nome_cliente in nomes_cliente:
-        for polo in processo['Polos']:
-            if polo['Polo'] == 'PA':
-                for parte in polo['Partes']:
-                    if parte['Pessoa'].lower().find(nome_cliente.lower()) >= 0:
-                        return True
+    for nome_cliente in nomes_clientes:
+        try:
+            for polo in processo['Polos']:
+                if polo['Polo'] == 'PA':
+                    for parte in polo['Partes']:
+                        if parte['Pessoa'].lower().find(nome_cliente.lower()) >= 0:
+                            return True
+        except:
+            pass
     return False
 
 
